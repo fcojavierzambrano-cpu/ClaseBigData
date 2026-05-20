@@ -1,0 +1,74 @@
+1
+import org.apache.spark.sql.SparkSession
+
+val spark = SparkSession.builder()
+  .appName("DecisionTreeCreditExample")
+  .getOrCreate()
+
+2
+val data = Seq(
+  (1.0,0.0,1.0,1.0),
+  (1.0,0.0,1.0,1.0),
+  (1.0,1.0,1.0,1.0),
+  (1.0,0.0,0.0,0.0),
+  (1.0,1.0,0.0,0.0),
+  (0.0,1.0,0.0,0.0),
+  (0.0,1.0,0.0,0.0),
+  (0.0,0.0,1.0,1.0),
+  (0.0,1.0,1.0,0.0),
+  (0.0,0.0,0.0,0.0)
+).toDF("income_high","has_debt","good_history","label")
+
+data.show()
+
+3
+
+import org.apache.spark.ml.feature.VectorAssembler
+
+val assembler = new VectorAssembler()
+  .setInputCols(Array("income_high","has_debt","good_history"))
+  .setOutputCol("features")
+
+val dataset = assembler.transform(data)
+dataset.select("features","label").show()
+
+
+4
+
+val Array(trainingData, testData) = dataset.randomSplit(Array(0.7, 0.3), seed = 42)
+
+5
+
+import org.apache.spark.ml.classification.DecisionTreeClassifier
+
+val dt = new DecisionTreeClassifier()
+  .setLabelCol("label")
+  .setFeaturesCol("features")
+  .setMaxDepth(3)
+
+6
+val model = dt.fit(trainingData)
+
+7
+
+println(model.toDebugString)
+
+
+8
+
+val predictions = model.transform(testData)
+
+predictions.select("features","label","prediction","probability").show(false)
+
+9
+
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+
+val evaluator = new MulticlassClassificationEvaluator()
+  .setLabelCol("label")
+  .setPredictionCol("prediction")
+  .setMetricName("accuracy")
+
+val accuracy = evaluator.evaluate(predictions)
+
+println("Accuracy = " + accuracy)
